@@ -19,6 +19,10 @@ func TestMetricsAndHealthLogExclusion(t *testing.T) {
 	if logs.Len() != 0 {
 		t.Fatalf("health was logged: %s", logs.String())
 	}
+	s.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if logs.Len() != 0 {
+		t.Fatalf("metrics was logged: %s", logs.String())
+	}
 	s.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/missing", nil))
 	if !strings.Contains(logs.String(), `"path":"/missing"`) {
 		t.Fatalf("request not logged: %s", logs.String())

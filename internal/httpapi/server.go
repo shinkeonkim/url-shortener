@@ -82,7 +82,7 @@ func (s *Server) observe(next http.Handler) http.Handler {
 			rw.status = http.StatusOK
 		}
 		s.metrics.ObserveRequest(r.Method, rw.status, time.Since(started))
-		if r.URL.Path != "/health" {
+		if r.URL.Path != "/health" && r.URL.Path != "/metrics" {
 			logRequest(r, rw.status, time.Since(started))
 		}
 	})
