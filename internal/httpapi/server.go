@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/shinkeonkim/url-shortener/internal/store"
 )
@@ -23,10 +24,11 @@ type Server struct {
 	repository Repository
 	baseDomain string
 	auth       AuthConfig
+	metrics    *Metrics
 }
 
 func New(repository ...Repository) *Server {
-	s := &Server{baseDomain: "url.shinkeonkim.com"}
+	s := &Server{baseDomain: "url.shinkeonkim.com", metrics: NewMetrics()}
 	if len(repository) > 0 {
 		s.repository = repository[0]
 	}
@@ -42,8 +44,9 @@ func New(repository ...Repository) *Server {
 	mux.HandleFunc("GET /api/v1/urls/{slug}/stats", s.getStats)
 	mux.HandleFunc("GET /admin", s.adminUI)
 	mux.HandleFunc("GET /assets/{name}", s.asset)
+	mux.HandleFunc("GET /metrics", s.metricsHandler)
 	mux.HandleFunc("GET /", s.subdomainRedirect)
-	s.handler = mux
+	s.handler = s.observe(mux)
 	return s
 }
 
@@ -52,6 +55,37 @@ func (s *Server) WithAuth(auth AuthConfig) *Server                 { s.auth = au
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.handler.ServeHTTP(w, r) }
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *responseWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+func (w *responseWriter) Write(body []byte) (int, error) {
+	if w.status == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(body)
+}
+
+func (s *Server) observe(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		rw := &responseWriter{ResponseWriter: w}
+		next.ServeHTTP(rw, r)
+		if rw.status == 0 {
+			rw.status = http.StatusOK
+		}
+		s.metrics.ObserveRequest(r.Method, rw.status, time.Since(started))
+		if r.URL.Path != "/health" {
+			logRequest(r, rw.status, time.Since(started))
+		}
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

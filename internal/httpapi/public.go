@@ -37,6 +37,7 @@ func (s *Server) redirectSlug(w http.ResponseWriter, r *http.Request, slug strin
 		storeError(w, err)
 		return
 	}
+	s.metrics.Redirects.Add(1)
 	http.Redirect(w, r, u.TargetURL, http.StatusFound)
 }
 func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
