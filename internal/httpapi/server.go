@@ -11,7 +11,9 @@ import (
 )
 
 type Repository interface {
+	CreateURL(context.Context, string, string) (store.URL, error)
 	GetURL(context.Context, string) (store.URL, error)
+	DeleteURL(context.Context, string) error
 	RecordClick(context.Context, string, string, string) error
 	Stats(context.Context, string, int) (store.Stats, error)
 }
@@ -20,6 +22,7 @@ type Server struct {
 	handler    http.Handler
 	repository Repository
 	baseDomain string
+	auth       AuthConfig
 }
 
 func New(repository ...Repository) *Server {
@@ -32,12 +35,20 @@ func New(repository ...Repository) *Server {
 	mux.HandleFunc("GET /r/{slug}", s.redirect)
 	mux.HandleFunc("GET /api/v1/urls/{slug}", s.getURL)
 	mux.HandleFunc("GET /api/v1/urls/{slug}/qr", s.qrCode)
+	mux.HandleFunc("POST /api/v1/auth/login", s.login)
+	mux.HandleFunc("POST /api/v1/auth/logout", s.logout)
+	mux.HandleFunc("POST /api/v1/urls", s.createURL)
+	mux.HandleFunc("DELETE /api/v1/urls/{slug}", s.deleteURL)
+	mux.HandleFunc("GET /api/v1/urls/{slug}/stats", s.getStats)
+	mux.HandleFunc("GET /admin", s.adminUI)
+	mux.HandleFunc("GET /assets/{name}", s.asset)
 	mux.HandleFunc("GET /", s.subdomainRedirect)
 	s.handler = mux
 	return s
 }
 
 func (s *Server) WithBaseDomain(domain string) *Server             { s.baseDomain = domain; return s }
+func (s *Server) WithAuth(auth AuthConfig) *Server                 { s.auth = auth; return s }
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.handler.ServeHTTP(w, r) }
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
