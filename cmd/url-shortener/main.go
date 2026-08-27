@@ -32,7 +32,10 @@ func run() error {
 		return err
 	}
 	defer db.Close()
-	handler := httpapi.New(db).WithBaseDomain(cfg.BaseDomain)
+	handler := httpapi.New(db).WithBaseDomain(cfg.BaseDomain).WithAuth(httpapi.AuthConfig{
+		Username: cfg.AdminUser, PasswordHash: cfg.AdminHash, Token: cfg.AdminToken,
+		SessionKey: cfg.SessionKey, CookieSecure: cfg.CookieSecure,
+	})
 	srv := &http.Server{Addr: cfg.Address, Handler: handler, ReadHeaderTimeout: cfg.ReadTimeout, WriteTimeout: cfg.WriteTimeout}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
