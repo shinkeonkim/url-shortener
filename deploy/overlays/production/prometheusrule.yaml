@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata: {name: url-shortener}
+spec:
+  groups:
+    - name: url-shortener
+      rules:
+        - alert: URLShortenerDown
+          expr: up{service="url-shortener"} == 0
+          for: 5m
+          labels: {severity: critical}
+          annotations: {summary: URL Shortener is unavailable}
+        - alert: URLShortenerHighErrorRate
+          expr: sum(rate(url_shortener_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(url_shortener_http_requests_total[5m])), 0.001) > 0.05
+          for: 10m
+          labels: {severity: warning}
+          annotations: {summary: URL Shortener 5xx rate exceeds 5%}

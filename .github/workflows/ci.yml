@@ -17,6 +17,7 @@ jobs:
       - run: make check
       - run: go test -race -cover ./...
       - run: go build ./cmd/url-shortener
+      - run: make e2e
   container:
     runs-on: ubuntu-latest
     steps:
