@@ -1,4 +1,4 @@
-.PHONY: test check build
+.PHONY: test check build e2e
 
 test:
 	go test ./...
@@ -10,3 +10,6 @@ check:
 
 build:
 	go build ./cmd/url-shortener
+
+e2e:
+	./scripts/e2e.sh
