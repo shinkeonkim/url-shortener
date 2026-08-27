@@ -82,6 +82,41 @@ func (s *SQLite) DeleteURL(ctx context.Context, slug string) error {
 	return err
 }
 
+func (s *SQLite) RecordClick(ctx context.Context, slug, referrer, userAgent string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO clicks(slug,created_at,referrer,user_agent) VALUES(?,?,?,?)`,
+		slug, time.Now().UTC().Format(time.RFC3339), referrer, userAgent)
+	if isConstraint(err) {
+		return ErrNotFound
+	}
+	return err
+}
+
+func (s *SQLite) Stats(ctx context.Context, slug string, limit int) (Stats, error) {
+	u, err := s.GetURL(ctx, slug)
+	if err != nil {
+		return Stats{}, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id,slug,created_at,referrer,user_agent FROM clicks WHERE slug=? ORDER BY id DESC LIMIT ?`, slug, limit)
+	if err != nil {
+		return Stats{}, err
+	}
+	defer rows.Close()
+	stats := Stats{URL: u, Recent: []Click{}}
+	for rows.Next() {
+		var c Click
+		var created string
+		if err := rows.Scan(&c.ID, &c.Slug, &created, &c.Referrer, &c.UserAgent); err != nil {
+			return Stats{}, err
+		}
+		c.CreatedAt, err = time.Parse(time.RFC3339, created)
+		if err != nil {
+			return Stats{}, err
+		}
+		stats.Recent = append(stats.Recent, c)
+	}
+	return stats, rows.Err()
+}
+
 func isConstraint(err error) bool {
 	return err != nil && (contains(err.Error(), "constraint") || contains(err.Error(), "UNIQUE"))
 }

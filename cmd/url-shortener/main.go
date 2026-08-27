@@ -32,7 +32,8 @@ func run() error {
 		return err
 	}
 	defer db.Close()
-	srv := &http.Server{Addr: cfg.Address, Handler: httpapi.New(), ReadHeaderTimeout: cfg.ReadTimeout, WriteTimeout: cfg.WriteTimeout}
+	handler := httpapi.New(db).WithBaseDomain(cfg.BaseDomain)
+	srv := &http.Server{Addr: cfg.Address, Handler: handler, ReadHeaderTimeout: cfg.ReadTimeout, WriteTimeout: cfg.WriteTimeout}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {

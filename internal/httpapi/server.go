@@ -1,19 +1,68 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
+
+	"github.com/shinkeonkim/url-shortener/internal/store"
 )
 
-type Server struct{ handler http.Handler }
-
-func New() *Server {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	})
-	return &Server{handler: mux}
+type Repository interface {
+	GetURL(context.Context, string) (store.URL, error)
+	RecordClick(context.Context, string, string, string) error
+	Stats(context.Context, string, int) (store.Stats, error)
 }
 
+type Server struct {
+	handler    http.Handler
+	repository Repository
+	baseDomain string
+}
+
+func New(repository ...Repository) *Server {
+	s := &Server{baseDomain: "url.shinkeonkim.com"}
+	if len(repository) > 0 {
+		s.repository = repository[0]
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", s.health)
+	mux.HandleFunc("GET /r/{slug}", s.redirect)
+	mux.HandleFunc("GET /api/v1/urls/{slug}", s.getURL)
+	mux.HandleFunc("GET /api/v1/urls/{slug}/qr", s.qrCode)
+	mux.HandleFunc("GET /", s.subdomainRedirect)
+	s.handler = mux
+	return s
+}
+
+func (s *Server) WithBaseDomain(domain string) *Server             { s.baseDomain = domain; return s }
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.handler.ServeHTTP(w, r) }
+func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func writeJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(value)
+}
+func writeError(w http.ResponseWriter, status int, message string) {
+	writeJSON(w, status, map[string]string{"error": message})
+}
+func storeError(w http.ResponseWriter, err error) {
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "short URL not found")
+		return
+	}
+	writeError(w, http.StatusInternalServerError, "internal server error")
+}
+func slugFromHost(host, domain string) string {
+	host = strings.Split(host, ":")[0]
+	suffix := "." + domain
+	if !strings.HasSuffix(host, suffix) {
+		return ""
+	}
+	return strings.TrimSuffix(host, suffix)
+}
