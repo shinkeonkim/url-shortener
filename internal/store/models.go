@@ -16,3 +16,8 @@ type Click struct {
 	Referrer  string    `json:"referrer,omitempty"`
 	UserAgent string    `json:"user_agent,omitempty"`
 }
+
+type Stats struct {
+	URL    URL     `json:"url"`
+	Recent []Click `json:"recent_clicks"`
+}

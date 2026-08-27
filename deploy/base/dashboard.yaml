@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: url-shortener-dashboard
+  labels: {grafana_dashboard: "1"}
+data:
+  url-shortener.json: |
+    {"title":"URL Shortener","uid":"url-shortener","schemaVersion":39,"panels":[{"type":"timeseries","title":"Requests / 5m","targets":[{"expr":"sum(rate(url_shortener_http_requests_total[5m])) by (status)","legendFormat":"{{status}}"}],"gridPos":{"x":0,"y":0,"w":12,"h":8}},{"type":"stat","title":"Redirects","targets":[{"expr":"sum(url_shortener_redirects_total)"}],"gridPos":{"x":12,"y":0,"w":6,"h":8}}]}
