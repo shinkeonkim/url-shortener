@@ -4,7 +4,10 @@ set -eu
 work_dir="$(mktemp -d)"
 port="${E2E_PORT:-18080}"
 base="http://127.0.0.1:${port}"
-cleanup() { kill "${server_pid:-0}" 2>/dev/null || true; rm -r "$work_dir"; }
+cleanup() {
+  if [ "${server_pid:-}" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
+  rm -rf "$work_dir"
+}
 trap cleanup EXIT INT TERM
 
 go build -o "$work_dir/url-shortener" ./cmd/url-shortener
