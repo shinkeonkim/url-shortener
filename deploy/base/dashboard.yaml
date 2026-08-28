@@ -5,4 +5,18 @@ metadata:
   labels: {grafana_dashboard: "1"}
 data:
   url-shortener.json: |
-    {"title":"URL Shortener","uid":"url-shortener","schemaVersion":39,"panels":[{"type":"timeseries","title":"Requests / 5m","targets":[{"expr":"sum(rate(url_shortener_http_requests_total[5m])) by (status)","legendFormat":"{{status}}"}],"gridPos":{"x":0,"y":0,"w":12,"h":8}},{"type":"stat","title":"Redirects","targets":[{"expr":"sum(url_shortener_redirects_total)"}],"gridPos":{"x":12,"y":0,"w":6,"h":8}}]}
+    {
+      "title": "URL Shortener", "uid": "url-shortener", "schemaVersion": 39,
+      "refresh": "30s", "time": {"from": "now-24h", "to": "now"},
+      "panels": [
+        {"type":"timeseries","title":"Request rate by route/status","targets":[{"expr":"sum(rate(url_shortener_http_requests_total[5m])) by (route,status)","legendFormat":"{{route}} {{status}}"}],"gridPos":{"x":0,"y":0,"w":16,"h":8}},
+        {"type":"stat","title":"5xx error rate","targets":[{"expr":"sum(rate(url_shortener_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(url_shortener_http_requests_total[5m])),0.001)"}],"fieldConfig":{"defaults":{"unit":"percentunit"}},"gridPos":{"x":16,"y":0,"w":8,"h":8}},
+        {"type":"timeseries","title":"Latency percentiles","targets":[{"expr":"histogram_quantile(0.50,sum(rate(url_shortener_http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p50"},{"expr":"histogram_quantile(0.95,sum(rate(url_shortener_http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p95"},{"expr":"histogram_quantile(0.99,sum(rate(url_shortener_http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p99"}],"fieldConfig":{"defaults":{"unit":"s"}},"gridPos":{"x":0,"y":8,"w":12,"h":8}},
+        {"type":"timeseries","title":"Redirect throughput","targets":[{"expr":"sum(rate(url_shortener_redirects_total[5m]))","legendFormat":"redirects/s"}],"gridPos":{"x":12,"y":8,"w":12,"h":8}},
+        {"type":"stat","title":"Stored URLs / Clicks","targets":[{"expr":"url_shortener_storage_items{kind=~\"urls|total_clicks\"}","legendFormat":"{{kind}}"}],"gridPos":{"x":0,"y":16,"w":8,"h":8}},
+        {"type":"timeseries","title":"Storage tiers","targets":[{"expr":"url_shortener_storage_items{kind=~\"raw_clicks|daily_rollups|monthly_rollups\"}","legendFormat":"{{kind}}"}],"gridPos":{"x":8,"y":16,"w":8,"h":8}},
+        {"type":"bargauge","title":"Top URLs by clicks","targets":[{"expr":"topk(10,url_shortener_url_clicks)","legendFormat":"{{slug}}"}],"gridPos":{"x":16,"y":16,"w":8,"h":8}},
+        {"type":"timeseries","title":"Authentication failures","targets":[{"expr":"sum(rate(url_shortener_http_requests_total{route=\"POST /api/v1/auth/login\",status=\"401\"}[5m]))","legendFormat":"failed logins/s"}],"gridPos":{"x":0,"y":24,"w":12,"h":8}},
+        {"type":"timeseries","title":"Admin mutations","targets":[{"expr":"sum(rate(url_shortener_http_requests_total{route=~\"POST /api/v1/urls|DELETE /api/v1/urls/\\{slug\\}\"}[5m])) by (route,status)","legendFormat":"{{route}} {{status}}"}],"gridPos":{"x":12,"y":24,"w":12,"h":8}}
+      ]
+    }

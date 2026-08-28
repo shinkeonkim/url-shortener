@@ -32,4 +32,9 @@ func TestMetricsAndHealthLogExclusion(t *testing.T) {
 	if !strings.Contains(w.Body.String(), "url_shortener_http_requests_total") {
 		t.Fatal("missing metrics")
 	}
+	for _, metric := range []string{"route=\"GET /health\"", "url_shortener_http_request_duration_seconds_bucket", "url_shortener_storage_items"} {
+		if !strings.Contains(w.Body.String(), metric) {
+			t.Fatalf("missing %s", metric)
+		}
+	}
 }

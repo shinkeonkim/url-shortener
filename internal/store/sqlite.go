@@ -40,7 +40,13 @@ CREATE TABLE IF NOT EXISTS clicks (
  id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL REFERENCES urls(slug) ON DELETE CASCADE,
  created_at TEXT NOT NULL, referrer TEXT NOT NULL DEFAULT '', user_agent TEXT NOT NULL DEFAULT ''
 );
-CREATE INDEX IF NOT EXISTS idx_clicks_slug_created ON clicks(slug, created_at DESC);`)
+CREATE INDEX IF NOT EXISTS idx_clicks_slug_created ON clicks(slug, created_at DESC);
+CREATE TABLE IF NOT EXISTS click_rollups (
+ slug TEXT NOT NULL REFERENCES urls(slug) ON DELETE CASCADE,
+ period_start TEXT NOT NULL, granularity TEXT NOT NULL CHECK(granularity IN ('day','month')),
+ clicks INTEGER NOT NULL CHECK(clicks >= 0), PRIMARY KEY(slug,period_start,granularity)
+);
+CREATE INDEX IF NOT EXISTS idx_rollups_slug_period ON click_rollups(slug,period_start DESC);`)
 	return err
 }
 
@@ -59,7 +65,10 @@ func (s *SQLite) CreateURL(ctx context.Context, slug, target string) (URL, error
 func (s *SQLite) GetURL(ctx context.Context, slug string) (URL, error) {
 	var u URL
 	var created string
-	err := s.db.QueryRowContext(ctx, `SELECT u.slug,u.target_url,u.created_at,COUNT(c.id) FROM urls u LEFT JOIN clicks c ON c.slug=u.slug WHERE u.slug=? GROUP BY u.slug`, slug).Scan(&u.Slug, &u.TargetURL, &created, &u.Clicks)
+	err := s.db.QueryRowContext(ctx, `SELECT u.slug,u.target_url,u.created_at,
+ (SELECT COUNT(*) FROM clicks c WHERE c.slug=u.slug) +
+ COALESCE((SELECT SUM(r.clicks) FROM click_rollups r WHERE r.slug=u.slug),0)
+ FROM urls u WHERE u.slug=?`, slug).Scan(&u.Slug, &u.TargetURL, &created, &u.Clicks)
 	if errors.Is(err, sql.ErrNoRows) {
 		return URL{}, ErrNotFound
 	}
@@ -101,7 +110,7 @@ func (s *SQLite) Stats(ctx context.Context, slug string, limit int) (Stats, erro
 		return Stats{}, err
 	}
 	defer rows.Close()
-	stats := Stats{URL: u, Recent: []Click{}}
+	stats := Stats{URL: u, Recent: []Click{}, Rollups: []Rollup{}}
 	for rows.Next() {
 		var c Click
 		var created string
@@ -114,7 +123,15 @@ func (s *SQLite) Stats(ctx context.Context, slug string, limit int) (Stats, erro
 		}
 		stats.Recent = append(stats.Recent, c)
 	}
-	return stats, rows.Err()
+	if err := rows.Err(); err != nil {
+		return Stats{}, err
+	}
+	rollups, err := s.rollups(ctx, slug, 400)
+	if err != nil {
+		return Stats{}, err
+	}
+	stats.Rollups = rollups
+	return stats, nil
 }
 
 func isConstraint(err error) bool {

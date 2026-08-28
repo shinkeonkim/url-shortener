@@ -32,6 +32,14 @@ SQLite WAL을 포함한 일관된 백업은 실행 중인 pod에서 `.backup` �
 내린 뒤 PVC snapshot을 만듭니다. DB 파일만 실행 중에 복사하지 않습니다. Longhorn의
 정기 snapshot/backup을 설정하고 분기마다 별도 namespace에서 복구 훈련을 수행합니다.
 
+## 로그 및 통계 보존
+
+애플리케이션은 매 시작 시와 24시간마다 통계 compaction을 수행합니다. 최근 30일 클릭은
+referrer와 user-agent를 포함한 원본 이벤트로, 30일 이후 1년까지는 일별 클릭 수로,
+그 이후에는 월별 클릭 수로 영구 보존합니다. `/api/v1/urls/{slug}/stats`는 최근 이벤트와
+집계 구간을 함께 반환합니다. Loki access log는 홈랩 보존 정책에 따라 30일 뒤 삭제하며,
+장기 추이는 SQLite rollup과 Prometheus 지표를 사용합니다.
+
 ## 배포와 롤백
 
 main merge 후 GHCR `latest`와 commit SHA tag가 게시됩니다. GitOps에서 운영 image를
