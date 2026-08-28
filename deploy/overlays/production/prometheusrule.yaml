@@ -15,3 +15,13 @@ spec:
           for: 10m
           labels: {severity: warning}
           annotations: {summary: URL Shortener 5xx rate exceeds 5%}
+        - alert: URLShortenerHighLatency
+          expr: histogram_quantile(0.95, sum(rate(url_shortener_http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+          for: 10m
+          labels: {severity: warning}
+          annotations: {summary: URL Shortener p95 latency exceeds 500ms}
+        - alert: URLShortenerRawClickBacklog
+          expr: url_shortener_storage_items{kind="raw_clicks"} > 500000
+          for: 1h
+          labels: {severity: warning}
+          annotations: {summary: URL Shortener raw click storage is unusually large}

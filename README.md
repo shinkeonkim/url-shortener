@@ -69,6 +69,8 @@ kubectl apply -k deploy/overlays/production
 
 production overlay는 단일 replica/Recreate deployment, Longhorn RWO PVC, Traefik wildcard
 Ingress, cert-manager Certificate, ServiceMonitor, Grafana dashboard와 alerts를 포함합니다.
+클릭 원본 이벤트는 30일 뒤 일별 통계로, 1년 뒤 월별 통계로 자동 축약되며 전체 클릭
+수는 계속 보존됩니다.
 SQLite 때문에 replica를 1보다 높이면 안 됩니다. 자세한 준비·검증·롤백은
 [`docs/operations.md`](docs/operations.md)를 참고하세요.
 

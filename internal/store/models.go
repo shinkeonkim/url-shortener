@@ -18,6 +18,31 @@ type Click struct {
 }
 
 type Stats struct {
-	URL    URL     `json:"url"`
-	Recent []Click `json:"recent_clicks"`
+	URL     URL      `json:"url"`
+	Recent  []Click  `json:"recent_clicks"`
+	Rollups []Rollup `json:"rollups"`
+}
+
+type Rollup struct {
+	PeriodStart time.Time `json:"period_start"`
+	Granularity string    `json:"granularity"`
+	Clicks      int64     `json:"clicks"`
+}
+
+type StorageStats struct {
+	URLs         int64
+	TotalClicks  int64
+	RawClicks    int64
+	DailyRollups int64
+	MonthRollups int64
+}
+
+type URLClickStat struct {
+	Slug   string
+	Clicks int64
+}
+
+type CompactResult struct {
+	RawClicksRolledUp  int64
+	DailyPeriodsRolled int64
 }

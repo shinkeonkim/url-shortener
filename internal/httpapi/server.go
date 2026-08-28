@@ -17,6 +17,8 @@ type Repository interface {
 	DeleteURL(context.Context, string) error
 	RecordClick(context.Context, string, string, string) error
 	Stats(context.Context, string, int) (store.Stats, error)
+	Overview(context.Context) (store.StorageStats, error)
+	URLClickStats(context.Context) ([]store.URLClickStat, error)
 }
 
 type Server struct {
@@ -81,7 +83,7 @@ func (s *Server) observe(next http.Handler) http.Handler {
 		if rw.status == 0 {
 			rw.status = http.StatusOK
 		}
-		s.metrics.ObserveRequest(r.Method, rw.status, time.Since(started))
+		s.metrics.ObserveRequest(r.Method, r.Pattern, rw.status, time.Since(started))
 		if r.URL.Path != "/health" && r.URL.Path != "/metrics" {
 			logRequest(r, rw.status, time.Since(started))
 		}
